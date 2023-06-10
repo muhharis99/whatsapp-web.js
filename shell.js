@@ -1,36 +1,53 @@
-/**
- * ==== wwebjs-shell ====
- * Used for quickly testing library features
- * 
- * Running `npm run shell` will start WhatsApp Web with headless=false
- * and then drop you into Node REPL with `client` in its context. 
- */
+const qrcode = require('qrcode-terminal');
 
-const repl = require('repl');
+const fs = require('fs');
+const { Client, LegacySessionAuth } = require('whatsapp-web.js');
 
-const { Client, LocalAuth } = require('./index');
+// Path where the session data will be stored
+const SESSION_FILE_PATH = './session.json';
 
+// Load the session data if it has been previously saved
+let sessionData;
+if(fs.existsSync(SESSION_FILE_PATH)) {
+    sessionData = require(SESSION_FILE_PATH);
+}
+
+// Use the saved values
 const client = new Client({
-    puppeteer: { headless: false }, 
-    authStrategy: new LocalAuth()
+    authStrategy: new LegacySessionAuth({
+        session: sessionData
+    })
 });
 
-console.log('Initializing...');
-
-client.initialize();
-
-client.on('qr', () => {
-    console.log('Please scan the QR code on the browser.');
-});
-
+// Save session values to the file upon successful auth
 client.on('authenticated', (session) => {
-    console.log(JSON.stringify(session));
-});
-
-client.on('ready', () => {
-    const shell = repl.start('wwebjs> ');
-    shell.context.client = client;
-    shell.on('exit', async () => {
-        await client.destroy();
+    sessionData = session;
+    fs.writeFile(SESSION_FILE_PATH, JSON.stringify(session), (err) => {
+        if (err) {
+            console.error(err);
+        }
     });
 });
+
+ 
+
+
+
+
+client.on('ready', () => {
+    console.log('Client is ready!');
+});
+
+client.on('qr', qr => {
+    qrcode.generate(qr, {small: true});
+});
+
+client.on('message', message => {
+    if(message.body === 'Haris') {
+        client.sendMessage(message.from, 'Firda');
+    }
+});
+ 
+
+client.initialize();
+ 
